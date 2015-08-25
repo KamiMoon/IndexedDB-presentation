@@ -153,7 +153,6 @@ window.onload = function() {
         };
     };
 
-
     var getObjectStore = function(store_name, mode) {
         var transaction = db.transaction(store_name, mode);
         return transaction.objectStore(store_name);
