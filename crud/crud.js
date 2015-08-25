@@ -1,5 +1,7 @@
+var UI = null;
+
 window.onload = function() {
-    var UI = {
+    UI = {
 
         serializeForm: function(formId) {
             var form = document.getElementById(formId);
@@ -16,66 +18,96 @@ window.onload = function() {
 
             }
 
-            return formObject;
+            return {
+                el: form,
+                model: formObject
+            };
         },
 
-        renderEmployeesList: function() {
-
-            EmployeesService.getEmployees({}, function(employees) {
-                var html = '';
-                var currentEmployee = null;
-                var i = 0;
-                var listObjectsEl = document.getElementById('list-objects');
-
-                for (i = 0; i < employees.length; i++) {
-                    currentEmployee = employees[i];
-                    html += '<tr>';
-                    html += '<td>' + currentEmployee.name + '</td>';
-                    html += '<td>' + currentEmployee.age + '</td>';
-                    html += '<td>' + currentEmployee.description + '</td>';
-                    html += '</tr>';
-                }
-
-                listObjectsEl.innerHTML = html;
+        refreshEmployeesList: function() {
+            EmployeesService.getEmployees({}, function(event, employees) {
+                UI.renderEmployeesList(employees);
             });
+        },
 
+        renderEmployeesList: function(employees) {
+            var html = '';
+            var currentEmployee = null;
+            var i = 0;
+            var listObjectsEl = document.getElementById('list-objects');
+
+            for (i = 0; i < employees.length; i++) {
+                currentEmployee = employees[i];
+                html += '<tr>';
+                html += '<td> <input type="text" id="update_name_' + currentEmployee._id + '" value="' + currentEmployee.name + '"></input></td>';
+                html += '<td> <input type="text" id="update_age_' + currentEmployee._id + '" value="' + currentEmployee.age + '"></input></td>';
+                html += '<td> <input type="text" id="update_description_' + currentEmployee._id + '" value="' + currentEmployee.description + '"></input></td>';
+                html += '<td><a href="#" onclick="UI.updateEmployee(' + currentEmployee._id + ');">Save</a></td>';
+                html += '<td><a href="#" onclick="UI.deleteEmployee(' + currentEmployee._id + ');">Delete</a></td>';
+                html += '</tr>';
+            }
+
+            listObjectsEl.innerHTML = html;
+
+        },
+
+        feedback: function(text) {
+            document.getElementById('feedback').innerHTML = text;
         },
 
         add: function(event) {
             event.preventDefault();
-            var formObject = UI.serializeForm("add-form");
+            var form = UI.serializeForm("add-form");
 
-            EmployeesService.addEmployee(formObject, function(id) {
+            EmployeesService.addEmployee(form.model, function(event, id) {
                 console.log("Created employee with id: " + id);
-                UI.renderEmployeesList();
+                UI.refreshEmployeesList();
+                UI.feedback('Added Employee');
+
+                form.el.reset();
             });
 
             return false;
         },
 
-        search: function(event) {
-            event.preventDefault();
-            var formObject = UI.serializeForm("search-form");
+        deleteEmployee: function(id) {
 
-            console.log(formObject);
+            EmployeesService.deleteEmployee(id, function(event) {
+                UI.refreshEmployeesList();
+                UI.feedback('Deleted Employee');
+            });
+
+            return false;
+        },
+
+        updateEmployee: function(id) {
+
+            var formObject = {
+                _id: id,
+                name: document.getElementById('update_name_' + id).value,
+                age: document.getElementById('update_age_' + id).value,
+                description: document.getElementById('update_description_' + id).value
+            };
+
+            EmployeesService.updateEmployee(formObject, function(event) {
+                UI.refreshEmployeesList();
+                UI.feedback('Updated Employee');
+            });
+
             return false;
         },
 
         init: function() {
-            //var searchButton = document.getElementById("search-button");
-            //searchButton.addEventListener("click", UI.search);
-
             var addButton = document.getElementById("add-button");
             addButton.addEventListener("click", UI.add);
 
-            UI.renderEmployeesList();
-
+            UI.refreshEmployeesList();
         }
     };
 
     var db;
     var DB_NAME = "CrudDB";
-    var VERSION = 3;
+    var VERSION = 4;
     var EMPLOYEES = "employees";
     var READ_WRITE = "readwrite";
     var READ_ONLY = "readonly";
@@ -100,7 +132,6 @@ window.onload = function() {
 
             //initialize UI after DB is open
             UI.init();
-
         };
 
         //Used to change structure of the database
@@ -109,8 +140,9 @@ window.onload = function() {
             console.log("onupgradeneeded triggered");
             var db = event.target.result;
 
-            //Employee "table" with autoincremeted id
+            //Employee "table" with autoincremeted _id like in MongoDB
             var objectStore = db.createObjectStore(EMPLOYEES, {
+                keyPath: '_id',
                 autoIncrement: true
             });
 
@@ -121,31 +153,29 @@ window.onload = function() {
         };
     };
 
+
+    var getObjectStore = function(store_name, mode) {
+        var transaction = db.transaction(store_name, mode);
+        return transaction.objectStore(store_name);
+    };
+
     var EmployeesService = {
 
         addEmployee: function(employee, callback) {
-            var transaction = db.transaction([EMPLOYEES], READ_WRITE);
-            var store = transaction.objectStore(EMPLOYEES);
+            var store = getObjectStore(EMPLOYEES, READ_WRITE);
             var id = null;
 
             var request = store.add(employee);
 
             request.onsuccess = function(event) {
                 id = event.target.result;
-                console.log("addEmployee:request:onsuccess");
-            };
-
-            transaction.oncomplete = function(event) {
-                console.log("addEmployee:transaction:oncomplete");
-                callback(id);
+                callback(event, id);
             };
         },
 
         getEmployees: function(criteria, callback) {
             var employees = [];
-
-            var transaction = db.transaction([EMPLOYEES], READ_ONLY);
-            var store = transaction.objectStore(EMPLOYEES);
+            var store = getObjectStore(EMPLOYEES, READ_ONLY);
 
             store.openCursor().onsuccess = function(event) {
                 var cursor = event.target.result;
@@ -153,21 +183,35 @@ window.onload = function() {
                     employees.push(cursor.value);
                     cursor.continue();
                 } else {
-                    //done
+                    callback(event, employees);
                 }
             };
 
-            transaction.oncomplete = function(event) {
-                console.log("getEmployees:transaction:oncomplete");
-                callback(employees);
-            };
+        },
 
+        getEmployee: function(id, callback) {
+            var store = getObjectStore(EMPLOYEES, READ_ONLY);
+
+            store.get(id).onsuccess = function(event) {
+                callback(event, event.target.result);
+            };
+        },
+
+        updateEmployee: function(employee, callback) {
+            var store = getObjectStore(EMPLOYEES, READ_WRITE);
+
+            store.put(employee).onsuccess = callback;
+        },
+
+        deleteEmployee: function(id, callback) {
+            var store = getObjectStore(EMPLOYEES, READ_WRITE);
+
+            store.delete(id).onsuccess = callback;
         }
     };
 
 
     //start App
     openDB();
-
 
 };
