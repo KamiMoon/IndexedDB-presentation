@@ -10,8 +10,8 @@ window.onload = function() {
             for (i = 0; i < form.length; i++) {
                 current = form[i];
 
-                if (current.id && current.value) {
-                    formObject[current.id] = current.value;
+                if (current.name && current.value) {
+                    formObject[current.name] = current.value;
                 }
 
             }
@@ -19,12 +19,35 @@ window.onload = function() {
             return formObject;
         },
 
+        renderEmployeesList: function() {
+
+            EmployeesService.getEmployees({}, function(employees) {
+                var html = '';
+                var currentEmployee = null;
+                var i = 0;
+                var listObjectsEl = document.getElementById('list-objects');
+
+                for (i = 0; i < employees.length; i++) {
+                    currentEmployee = employees[i];
+                    html += '<tr>';
+                    html += '<td>' + currentEmployee.name + '</td>';
+                    html += '<td>' + currentEmployee.age + '</td>';
+                    html += '<td>' + currentEmployee.description + '</td>';
+                    html += '</tr>';
+                }
+
+                listObjectsEl.innerHTML = html;
+            });
+
+        },
+
         add: function(event) {
             event.preventDefault();
-            var formObject = UI.serializeForm("search-form");
+            var formObject = UI.serializeForm("add-form");
 
-            EmployeesService.addEmployee(function(event, id) {
-                console.log("Add employee with ID:" + id);
+            EmployeesService.addEmployee(formObject, function(id) {
+                console.log("Created employee with id: " + id);
+                UI.renderEmployeesList();
             });
 
             return false;
@@ -32,74 +55,70 @@ window.onload = function() {
 
         search: function(event) {
             event.preventDefault();
-            var formObject = UI.serializeForm("add-form");
+            var formObject = UI.serializeForm("search-form");
 
             console.log(formObject);
             return false;
         },
 
         init: function() {
-            var searchButton = document.getElementById("search-button");
-            searchButton.addEventListener("click", UI.search);
+            //var searchButton = document.getElementById("search-button");
+            //searchButton.addEventListener("click", UI.search);
 
             var addButton = document.getElementById("add-button");
             addButton.addEventListener("click", UI.add);
 
+            UI.renderEmployeesList();
+
         }
     };
 
-    UI.init();
-
-
-
-    // In the following line, you should include the prefixes of implementations you want to test.
-    window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
-    // DON'T use "var indexedDB = ..." if you're not in a function.
-    // Moreover, you may need references to some window.IDB* objects:
-    window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;
-    window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
-    // (Mozilla has never prefixed these objects, so we don't need window.mozIDB*)
-    if (!window.indexedDB) {
-        window.alert("Your browser doesn't support a stable version of IndexedDB. Such and such feature will not be available.");
-    }
-
     var db;
     var DB_NAME = "CrudDB";
-    var VERSION = 2;
+    var VERSION = 3;
     var EMPLOYEES = "employees";
     var READ_WRITE = "readwrite";
+    var READ_ONLY = "readonly";
 
-    var request = window.indexedDB.open(DB_NAME, VERSION);
+    var openDB = function() {
+        var request = window.indexedDB.open(DB_NAME, VERSION);
 
-    request.onerror = function(event) {
-        // Do something with request.errorCode!
-        console.error(request.errorCode);
-    };
-    request.onsuccess = function(event) {
-        console.info("DB created: " + DB_NAME + " v" + VERSION);
-        db = event.target.result;
-
-        db.onerror = function(event) {
-            // Generic error handler for all errors targeted at this database's
-            // requests!
-            alert("Database error: " + event.target.errorCode);
+        request.onerror = function(event) {
+            // Do something with request.errorCode!
+            console.error(request.errorCode);
         };
-    };
+        request.onsuccess = function(event) {
+            console.info("DB created: " + DB_NAME + " v" + VERSION);
+            db = event.target.result;
 
-    //Used to change structure of the database
-    //NOTE: MUST CHANGE VERSION in order for changes to be applied here
-    request.onupgradeneeded = function(event) {
-        console.log("onupgradeneeded triggered");
-        var db = event.target.result;
+            db.onerror = function(event) {
+                // Generic error handler for all errors targeted at this database's
+                // requests!
+                alert("Database error: " + event.target.errorCode);
+            };
 
-        //Employee "table" with autoincremeted id
-        var objectStore = db.createObjectStore(EMPLOYEES, {
-            autoIncrement: true
-        });
 
-        objectStore.createIndex(EMPLOYEES, "name", {
-            unique: false
-        });
+            //initialize UI after DB is open
+            UI.init();
+
+        };
+
+        //Used to change structure of the database
+        //NOTE: MUST CHANGE VERSION in order for changes to be applied here
+        request.onupgradeneeded = function(event) {
+            console.log("onupgradeneeded triggered");
+            var db = event.target.result;
+
+            //Employee "table" with autoincremeted id
+            var objectStore = db.createObjectStore(EMPLOYEES, {
+                autoIncrement: true
+            });
+
+            //objectStore.createIndex(EMPLOYEES, "name", {
+            //    unique: false
+            //});
+
+        };
     };
 
     var EmployeesService = {
@@ -110,20 +129,45 @@ window.onload = function() {
             var id = null;
 
             var request = store.add(employee);
+
             request.onsuccess = function(event) {
-                //event.target.result == customerData[i].ssn;
-                console.log(event.target.result);
+                id = event.target.result;
+                console.log("addEmployee:request:onsuccess");
             };
 
             transaction.oncomplete = function(event) {
-                callback(event, id);
+                console.log("addEmployee:transaction:oncomplete");
+                callback(id);
+            };
+        },
+
+        getEmployees: function(criteria, callback) {
+            var employees = [];
+
+            var transaction = db.transaction([EMPLOYEES], READ_ONLY);
+            var store = transaction.objectStore(EMPLOYEES);
+
+            store.openCursor().onsuccess = function(event) {
+                var cursor = event.target.result;
+                if (cursor) {
+                    employees.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    //done
+                }
             };
 
-            transaction.onerror = function(event) {
-                console.error(event);
+            transaction.oncomplete = function(event) {
+                console.log("getEmployees:transaction:oncomplete");
+                callback(employees);
             };
 
         }
     };
+
+
+    //start App
+    openDB();
+
 
 };
