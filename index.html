@@ -90,7 +90,7 @@
             <strong class="slideTitle">Aspects</strong>
             <ul class="squareBullets">
                 <li>Stores more than 5MB of data unlike local storage</li>
-                <li>Database are unique per domain and secured by domain</li>
+                <li>Database are unique per domain and secured by <a href="C:\Users\IOSG077\AppData\Local\Google\Chrome\User Data\Default\IndexedDB" target="_blank">domain</a></li>
                 <li>A "NoSQL" type database with transactions. No declarative query language, but has a basic JS API. No foreign keys or joins.</li>
                 <li>Supports transactions, indexes, CRUD, queries, and is asychronous</li>
                 <li>A component of offline applications</li>
@@ -108,14 +108,14 @@
             <strong class="slideTitle">Terminology</strong>
             <ul class="squareBullets">
                 <li>Value: JS primitives and objects. Each row can have data of different formats.</li>
-                <li>Index: Used for efficient retrieval, must be specified during "versionchange" event, can be set to unique true</li>
+                <li>Index: Used for efficient retrieval, must be specified during "versionchange/onupgradeneeded" event, can be set to unique true</li>
                 <li>Request: A read or write operations inside of a transaction.</li>
             </ul>
         </div>
         <div class="step slide" data-x="-1500" data-y="3500" data-z="50" data-y="3500" data-z="50" data-rotate-x="-30" data-rotate-y="45" data-rotate-z="0">
             <strong class="slideTitle">Terminology</strong>
             <ul class="squareBullets">
-                <li>Transaction: All operations occur through an atomic transaction that is either "readonly," "readwrite," or "versionchange." Transactions that are "readonly" can overlap. Write transactions on the same store queue up. Transactions can be aborted manually and rolled back. They autocomit.</li>
+                <li>Transaction: All operations occur through an atomic transaction that is either "readonly," "readwrite." Transactions that are "readonly" can overlap. Write transactions on the same store queue up. Transactions can be aborted manually and rolled back. They autocomit.</li>
             </ul>
         </div>
         <div class="step" data-x="-1500" data-y="3500" data-z="50" data-y="3500" data-z="50" data-rotate-x="-30" data-rotate-y="135" data-rotate-z="0">
@@ -124,7 +124,6 @@
         <div class="step" data-x="-1500" data-y="4200" data-z="50" data-scale="0.5" data-y="3500" data-z="1000" data-rotate-x="-30" data-rotate-y="135" data-rotate-z="0">
             <strong class="slideTitle">Resources & Misc</strong>
             <ul class="squareBullets">
-                <li><a href="C:\Users\IOSG077\AppData\Local\Google\Chrome\User Data\Default\IndexedDB" target="_blank">Where Chrome stores Data</a></li>
                 <li><a href="http://stackoverflow.com/questions/9384128/how-to-delete-indexeddb-in-chrome">How to delete IndexedDB in Chrome</a></li>
                 <li><a href="http://www.w3.org/TR/IndexedDB/">W3C</a></li>
                 <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB">Mozilla</a></li>
